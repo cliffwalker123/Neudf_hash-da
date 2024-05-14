@@ -22,6 +22,16 @@ pip install pymeshlab
 ```
 To build PyMeshLab from source, please refer to [PyMeshLab](https://github.com/cnr-isti-vclab/PyMeshLab).
 
+about tinycudann:
+```
+git clone --recursive https://github.com/nvlabs/tiny-cuda-nn
+## with a Nvidia GPU,gcc 8+,cmake 3.21+ 
+cd bindings/torch
+python setup.py install
+## it will take a little long time to compile and install(20-30min)
+```
+
+
 ### Running
 
 - **Train without mask**
@@ -60,17 +70,7 @@ python exp_runner.py --mode validate_mesh --conf <config_file> --case <case_name
 
 The corresponding mesh can be found in `exp/<case_name>/<exp_name>/meshes/<iter_steps>.ply`.
 
-### Evaluation using pretrained models
-
-- **Without mask setting** 
-```shell
-python exp_runner.py --mode validate_mesh_udf --conf ./confs/womask_open.conf --case my_rack_test --is_continue --resolution 512
-```
-
-- **With mask setting** 
-```shell
-python exp_runner.py --mode validate_mesh_udf --conf ./confs/wmask_open.conf --case my_whale_test --is_continue --resolution 512
-```
+#### all of the params can be found at the bottom of exp_runner.py , any further train/test settings are in the conf file.
 
 ### Datasets and results
 
