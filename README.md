@@ -1,15 +1,9 @@
-# NeUDF
-We present an open surface reconstruction method using UDF, called NeUDF, for reconstructing objects with high-fidelity open surfaces from 2D image inputs.
-
+# Baseline:NeUDF
 ![](./static/teaser.jpg)
 
 ## [Project page](http://geometrylearning.com/neudf/) |  [Paper](http://geometrylearning.com/neudf/paper.pdf)
-This is the official repo for the implementation of **NeUDF: Leaning Neural Unsigned Distance Fields with Volume Rendering** (CVPR 2023).
-
 ## Usage
-
 ### Setup environment
-
 Installing the requirements using:
 ```shell
 pip install -r requirements.txt
@@ -108,19 +102,4 @@ exp
 Please refer to the  [Data Conversion](https://github.com/Totoro97/NeuS/tree/main/preprocess_custom_data) in NeuS.
 
 
-## Citation
 
-Cite as below if you find this repository is helpful to your project:
-
-```
-@inproceedings{Liu23NeUDF,
-    author = {Liu, Yu-Tao and Wang, Li and Yang, Jie and Chen, Weikai and Meng, Xiaoxu and Yang, Bo and Gao, Lin},
-    title = {NeUDF: Leaning Neural Unsigned Distance Fields with Volume Rendering},
-    booktitle={Computer Vision and Pattern Recognition (CVPR)},
-    year = {2023},
-}
-```
-
-## Acknowledgement
-
-Some code snippets are borrowed from [NeuS](https://github.com/Totoro97/NeuS), [NDF](https://github.com/jchibane/ndf) and [MeshUDF](https://github.com/cvlab-epfl/MeshUDF). Thanks for these great projects.

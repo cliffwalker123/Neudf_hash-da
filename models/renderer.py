@@ -399,7 +399,7 @@ class NeuSRenderer:
 
         # normal loss
         normals = gradients.reshape(batch_size, n_samples, 3)
-        normals = normals / torch.linalg.norm(normals, ord=2, dim=-1, keepdim=True)
+        normals = normals / (torch.linalg.norm(normals, ord=2, dim=-1, keepdim=True) + 1e-5)
         prev_normals = torch.cat([normals[:, :1, :], normals[:, :-1, :]], dim=1)
         sin_p = torch.abs((normals-prev_normals)).sum(dim=-1)
         sin_n = torch.abs((normals+prev_normals)).sum(dim=-1)

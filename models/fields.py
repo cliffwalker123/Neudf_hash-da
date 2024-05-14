@@ -2,8 +2,8 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import numpy as np
-from models.embedder import get_embedder
-
+from models.embedder import get_embedder,get_embedder1
+from models.model_components import get_encoding
 
 # This implementation is borrowed from IDR: https://github.com/lioryariv/idr
 class SDFNetwork(nn.Module):
@@ -19,18 +19,44 @@ class SDFNetwork(nn.Module):
                  geometric_init=True,
                  weight_norm=True,
                  inside_outside=False,
-                 mode='act'):
+                 mode='act',
+
+        ):
         super(SDFNetwork, self).__init__()
 
+        # #####qqqqq#####begin
+        max_width_codebook = 2 ** 12
+        min_width_codebook = 16
+        num_lods = 19
+        feature_dim = 2
+        codebook_bitwidth = 19
+        include_xyz = True
+        n_frequencies = 6
+        self.device = 'cuda'
+        per_level_scale = np.exp((np.log(max_width_codebook) - np.log(min_width_codebook)) / num_lods)
+        encoding_config = {
+            "otype": "HashGrid",
+            "hash": "CoherentPrime",
+            "n_levels": num_lods,
+            "n_features_per_level": feature_dim,
+            "log2_hashmap_size": codebook_bitwidth,
+            "base_resolution": min_width_codebook,
+            "per_level_scale": per_level_scale,
+            "interpolation": "Smoothstep",
+            "include_xyz": include_xyz,
+            "n_frequencies": n_frequencies,
+        }
+        self.encoding_sdf = get_encoding(3, encoding_config, device=self.device)
+        
         dims = [d_in] + [d_hidden for _ in range(n_layers)] + [d_out]
 
-        self.embed_fn_fine = None
-
-        if multires > 0:
-            embed_fn, input_ch = get_embedder(multires, input_dims=d_in)
-            self.embed_fn_fine = embed_fn
-            dims[0] = input_ch
-
+        # self.embed_fn_fine = None
+        # if multires > 0:
+        #     embed_fn, input_ch = get_embedder(multires, input_dims=d_in)
+        #     self.embed_fn_fine = embed_fn
+        #     dims[0] = input_ch
+        dims[0] = self.encoding_sdf.n_output_dims
+        #####qqqqq#####end
         self.num_layers = len(dims)
         self.skip_in = skip_in
         self.scale = scale
@@ -74,15 +100,17 @@ class SDFNetwork(nn.Module):
 
     def forward(self, inputs):
         inputs = inputs * self.scale
-        if self.embed_fn_fine is not None:
-            inputs = self.embed_fn_fine(inputs)
-
-        x = inputs
+        inputs = inputs * 0.5
+        # if self.embed_fn_fine is not None:
+        #     inputs = self.embed_fn_fine(inputs)
+        #####qqqqq
+        x = self.encoding_sdf(inputs).to(torch.float32)
+        x0 = x
         for l in range(0, self.num_layers - 1):
             lin = getattr(self, "lin" + str(l))
 
             if l in self.skip_in:
-                x = torch.cat([x, inputs], 1) / np.sqrt(2)
+                x = torch.cat([x, x0], 1) / np.sqrt(2)
 
             x = lin(x)
 
@@ -131,11 +159,27 @@ class RenderingNetwork(nn.Module):
         self.squeeze_out = squeeze_out
         dims = [d_in + d_feature] + [d_hidden for _ in range(n_layers)] + [d_out]
 
-        self.embedview_fn = None
-        if multires_view > 0:
-            embedview_fn, input_ch = get_embedder(multires_view)
-            self.embedview_fn = embedview_fn
-            dims[0] += (input_ch - 3)
+        #####qqqqq#####
+        # self.embedview_fn = None
+        # if multires_view > 0:
+        #     embedview_fn, input_ch = get_embedder(multires_view)
+        #     self.embedview_fn = embedview_fn
+        #     dims[0] += (input_ch - 3)
+        n_frequencies = 4
+        self.device = 'cuda'
+        config_encoding_dirs = {
+            "otype": "Composite",
+            "nested": [
+                {
+                    "n_dims_to_encode": 3,
+                    "otype": "SphericalHarmonics",
+                    "degree": n_frequencies,
+                },
+            ],
+        }
+        self.encoding_dirs = get_encoding(n_input_dims=3, config=config_encoding_dirs, device=self.device)
+        dims[0] += self.encoding_dirs.n_output_dims - 3
+        #####qqqqq#####
 
         self.num_layers = len(dims)
 
@@ -150,10 +194,12 @@ class RenderingNetwork(nn.Module):
 
         self.relu = nn.ReLU()
 
-    def forward(self, points, normals, view_dirs, feature_vectors, sdf=None, second_order_gradients=None):
-        view_dirs_raw = view_dirs
-        if self.embedview_fn is not None:
-            view_dirs = self.embedview_fn(view_dirs)
+    def forward(self, points, normals, view_dirs0, feature_vectors, sdf=None, second_order_gradients=None):
+        view_dirs = (view_dirs0 + 1.) / 2.  # (-1, 1) => (0, 1)
+        view_dirs = self.encoding_dirs(view_dirs)
+        # view_dirs_raw = view_dirs
+        # if self.embedview_fn is not None:
+        #     view_dirs = self.embedview_fn(view_dirs)
 
         rendering_input = None
 
